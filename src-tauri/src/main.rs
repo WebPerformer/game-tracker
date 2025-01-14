@@ -38,19 +38,19 @@ fn list_app_processes() -> Vec<ProcessInfo> {
 }
 
 #[command]
-fn execute_process(process_path: String) -> Result<String, String> {
+fn execute_process(process_path: String) -> Result<(), String> {
     let parent_dir = std::path::Path::new(&process_path)
         .parent()
         .ok_or("Não foi possível obter o diretório do executável")?;
 
-    let command = Command::new(&process_path)
-        .current_dir(parent_dir) // Define o diretório de trabalho
-        .spawn(); // Executa o processo de forma assíncrona
+    Command::new(&process_path)
+        .current_dir(parent_dir)
+        .spawn()
+        .map_err(|error| format!("Erro ao iniciar o processo: {:?}", error))?;
 
-    match command {
-        Err(error) => Err(format!("Erro ao iniciar o processo: {:?}", error)),
-    }
+    Ok(())
 }
+
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
