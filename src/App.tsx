@@ -21,8 +21,19 @@ function App() {
   const [selectedYear, setSelectedYear] = useState<string>('') // Estado para o filtro de ano
   const [showModal, setShowModal] = useState<boolean>(false)
   const [currentProcess, setCurrentProcess] = useState<ProcessInfo | null>(null)
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const itemsPerPage = 15
+  const [visibleProcesses, setVisibleProcesses] = useState<number>(15)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = document.documentElement
+      if (scrollTop + clientHeight >= scrollHeight - 5) {
+        setVisibleProcesses((prev) => prev + 15) // Carrega mais 15 itens
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const storeRef = useRef<Store | null>(null) // Referência para o Store
@@ -63,6 +74,8 @@ function App() {
       new Date(process.addedDate).getFullYear().toString() === selectedYear
     return matchesSearch && matchesYear
   })
+
+  const processesToShow = filteredProcesses.slice(0, visibleProcesses)
 
   const handleAddProcess = async () => {
     try {
@@ -193,21 +206,6 @@ function App() {
     }
   }
 
-  const paginatedProcesses = filteredProcesses.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  )
-
-  const totalPages = Math.ceil(filteredProcesses.length / itemsPerPage)
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1)
-  }
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1)
-  }
-
   return (
     <main className="app">
       <div className="header">
@@ -238,7 +236,7 @@ function App() {
         </select>
       </div>
       <div className="grid container">
-        {paginatedProcesses.map((process) => (
+        {processesToShow.map((process) => (
           <div key={process.name} className="card">
             <img
               src={process.coverUrl || 'https://via.placeholder.com/300'}
@@ -267,18 +265,6 @@ function App() {
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="pagination">
-        <button onClick={handlePreviousPage} disabled={currentPage === 1}>
-          Anterior
-        </button>
-        <span>
-          Página {currentPage} de {totalPages}
-        </span>
-        <button onClick={handleNextPage} disabled={currentPage === totalPages}>
-          Próxima
-        </button>
       </div>
 
       {showModal && currentProcess && (
