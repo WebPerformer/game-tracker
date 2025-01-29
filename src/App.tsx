@@ -5,14 +5,25 @@ import { load, Store } from '@tauri-apps/plugin-store'
 import '@fontsource-variable/inter'
 import './App.css'
 
+// Novo
+import Header from './components/Header'
+import GameEditModal from './components/GameEditModal'
+import GameList from './components/GameList'
+import GameDetails from './components/GameDetails'
+
 interface ProcessInfo {
   name: string
-  path: string // Caminho completo do executável
-  time: number // Tempo total acumulado (em segundos)
-  running: boolean // Indica se o processo está rodando
-  customName?: string // Nome personalizado
-  coverUrl?: string // URL da capa
-  addedDate: string // Data de adição
+  path: string // Full path to the executable
+  time: number // Total accumulated time (in seconds)
+  running: boolean // Indicates whether the process is running
+  customName?: string // Custom name
+  coverUrl?: string // Cover image URL
+  addedDate: string // Date added
+  lastPlayedDate?: string // Last played date (optional)
+}
+
+interface SelectedGame extends ProcessInfo {
+  fileExists: boolean
 }
 
 function App() {
@@ -22,6 +33,23 @@ function App() {
   const [showModal, setShowModal] = useState<boolean>(false)
   const [currentProcess, setCurrentProcess] = useState<ProcessInfo | null>(null)
   const [visibleProcesses, setVisibleProcesses] = useState<number>(15)
+  const [selectedGame, setSelectedGame] = useState<SelectedGame | null>(null)
+
+  const handleGameClick = async (process: ProcessInfo) => {
+    try {
+      const fileExists = await invoke('check_if_file_exists', {
+        path: process.path,
+      })
+
+      // Ensure we update the selected game correctly
+      setSelectedGame({
+        ...process,
+        fileExists: fileExists as boolean, // Add fileExists to the game object
+      })
+    } catch (error) {
+      console.error('Error checking file existence:', error)
+    }
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -57,10 +85,9 @@ function App() {
     initializeStore()
   }, [])
 
-  // Obter os anos únicos dos processos
   const availableYears = Array.from(
     new Set(trackedProcesses.map((p) => new Date(p.addedDate).getFullYear())),
-  )
+  ).map(String)
 
   // Filtrar com base na busca e no ano selecionado
   const filteredProcesses = trackedProcesses.filter((process) => {
@@ -125,19 +152,83 @@ function App() {
     }
   }
 
-  const updateProcessTime = async (name: string, newTime: number) => {
-    const updatedProcesses = trackedProcesses.map((p) =>
-      p.name === name ? { ...p, time: newTime } : p,
+  const updateProcessTime = async (
+    name: string,
+    newTime: number,
+    isRunning: boolean,
+  ) => {
+    setTrackedProcesses((prevProcesses) =>
+      prevProcesses.map((process) =>
+        process.name === name
+          ? {
+              ...process,
+              time: newTime,
+              running: isRunning,
+              lastPlayedDate: !isRunning
+                ? new Date().toISOString() // Update lastPlayedDate when running changes to false
+                : process.lastPlayedDate,
+            }
+          : process,
+      ),
+    )
+
+    const updatedProcesses = trackedProcesses.map((process) =>
+      process.name === name
+        ? {
+            ...process,
+            time: newTime,
+            running: isRunning,
+            lastPlayedDate: !isRunning
+              ? new Date().toISOString() // Update lastPlayedDate when running changes to false
+              : process.lastPlayedDate,
+          }
+        : process,
     )
 
     setTrackedProcesses(updatedProcesses)
 
     if (storeRef.current) {
-      // Atualiza no Store
       await storeRef.current.set('processes', updatedProcesses)
       await storeRef.current.save()
     } else {
       console.error('Store não inicializado.')
+    }
+
+    // Update selectedGame when process running changes
+    if (selectedGame?.name === name) {
+      setSelectedGame((prevSelectedGame) => ({
+        ...prevSelectedGame!,
+        running: isRunning,
+        time: newTime, // Update the time when running state changes
+        lastPlayedDate: !isRunning
+          ? new Date().toISOString()
+          : prevSelectedGame?.lastPlayedDate, // Update lastPlayedDate when running changes to false
+      }))
+    }
+  }
+
+  const getLastPlayedTime = (lastPlayedDate: Date | string) => {
+    const now = new Date()
+
+    // If the date is a string, convert it to a Date object
+    const lastPlayed = new Date(lastPlayedDate)
+
+    const diffInSeconds = Math.floor(
+      (now.getTime() - lastPlayed.getTime()) / 1000,
+    ) // Ensure both are Date objects
+
+    const days = Math.floor(diffInSeconds / (3600 * 24))
+    const hours = Math.floor((diffInSeconds % (3600 * 24)) / 3600)
+    const minutes = Math.floor((diffInSeconds % 3600) / 60)
+
+    if (days > 0) {
+      return `${days} dia(s) atrás`
+    } else if (hours > 0) {
+      return `${hours} hora(s) atrás`
+    } else if (minutes > 0) {
+      return `${minutes} minuto(s) atrás`
+    } else {
+      return 'Recentemente'
     }
   }
 
@@ -147,21 +238,18 @@ function App() {
         const activeProcesses: { name: string; running: boolean }[] =
           await invoke('list_app_processes')
 
-        setTrackedProcesses((prev) =>
-          prev.map((process) => {
-            const isRunning = activeProcesses.some(
-              (activeProcess) => activeProcess.name === process.name,
-            )
+        trackedProcesses.forEach((process) => {
+          const isRunning = activeProcesses.some(
+            (active) => active.name === process.name,
+          )
 
-            if (isRunning) {
-              const updatedTime = process.time + 1
-              updateProcessTime(process.name, updatedTime)
-              return { ...process, time: updatedTime, running: true }
-            } else {
-              return { ...process, running: false }
-            }
-          }),
-        )
+          if (isRunning) {
+            const updatedTime = process.time + 1
+            updateProcessTime(process.name, updatedTime, true) // Atualiza tempo e estado
+          } else if (process.running) {
+            updateProcessTime(process.name, process.time, false) // Atualiza para "não rodando"
+          }
+        })
       } catch (error) {
         console.error('Error fetching active processes:', error)
       }
@@ -200,107 +288,57 @@ function App() {
     try {
       const result = await invoke('execute_process', { processPath })
       console.log('Processo iniciado com sucesso:', result)
-      alert(result)
     } catch (error) {
       console.error('Erro ao tentar executar o processo:', error)
     }
   }
 
   return (
-    <main className="app">
-      <div className="header">
-        <h1 className="header-title">Minha Biblioteca</h1>
-        <button onClick={handleAddProcess} className="add-button">
-          Adicionar
-        </button>
-      </div>
-      <div className="container">
-        <input
-          type="text"
-          placeholder="Pesquisar jogos..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-bar"
+    <main className="w-full min-h-screen bg-background p-4">
+      <Header
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        availableYears={availableYears}
+        handleAddProcess={handleAddProcess}
+      />
+
+      <div className="flex gap-10">
+        <GameList
+          processesToShow={processesToShow} // Passando a lista de processos filtrados
+          selectedGame={selectedGame} // Passando o jogo selecionado
+          handleGameClick={handleGameClick} // Passando a função de clique
         />
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-          className="year-filter"
+
+        <div
+          className="flex flex-col sticky top-14 max-w-[900px] mx-auto z-10" // Garante que o sticky funcione corretamente
+          style={{
+            maxHeight: 'calc(100vh - 2rem)', // Garante que a altura da área não ultrapasse a tela
+            overflowY: 'auto', // Permite rolagem vertical
+          }}
         >
-          <option value="">Todos os anos</option>
-          {availableYears.map((year) => (
-            <option key={year} value={year.toString()}>
-              {year}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="grid container">
-        {processesToShow.map((process) => (
-          <div key={process.name} className="card">
-            <img
-              src={process.coverUrl || 'https://via.placeholder.com/300'}
-              alt={process.customName || process.name}
-              className="card-image"
+          {selectedGame ? (
+            <GameDetails
+              selectedGame={selectedGame}
+              handlePlayProcess={handlePlayProcess}
+              handleOpenModal={handleOpenModal}
+              handleRemoveProcess={handleRemoveProcess}
+              getLastPlayedTime={getLastPlayedTime}
             />
-            <div className="card-info">
-              <h3>{process.customName || process.name}</h3>
-              <p className="timer-track">
-                Tempo: {Math.floor(process.time / 3600)}h{' '}
-                {Math.floor((process.time % 3600) / 60)}m {process.time % 60}s
-              </p>
-              <p className="added-date">
-                Adicionado em:{' '}
-                {new Date(process.addedDate).toLocaleDateString()}
-              </p>
-              <div className="card-buttons">
-                <button onClick={() => handlePlayProcess(process.path)}>
-                  Play
-                </button>
-                <button onClick={() => handleOpenModal(process)}>Editar</button>
-                <button onClick={() => handleRemoveProcess(process.name)}>
-                  Remover
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
+          ) : (
+            <span className="text-lg">Selecione um jogo</span>
+          )}
+        </div>
       </div>
 
       {showModal && currentProcess && (
-        <>
-          <div
-            className="modal-overlay"
-            onClick={() => setShowModal(false)}
-          ></div>
-          <div className="modal">
-            <h2>Editar Jogo</h2>
-            <input
-              type="text"
-              defaultValue={currentProcess.customName}
-              placeholder="Nome Personalizado"
-              onChange={(e) => (currentProcess.customName = e.target.value)}
-            />
-            <input
-              type="text"
-              defaultValue={currentProcess.coverUrl}
-              placeholder="URL da Capa"
-              onChange={(e) => (currentProcess.coverUrl = e.target.value)}
-            />
-            <button
-              onClick={() =>
-                storeRef.current
-                  ? handleSaveChanges(
-                      currentProcess.customName!,
-                      currentProcess.coverUrl!,
-                    )
-                  : console.error('Store ainda não está disponível.')
-              }
-            >
-              Salvar
-            </button>
-          </div>
-        </>
+        <GameEditModal
+          currentProcess={currentProcess}
+          storeRef={storeRef}
+          onSave={handleSaveChanges}
+          onClose={() => setShowModal(false)}
+        />
       )}
     </main>
   )

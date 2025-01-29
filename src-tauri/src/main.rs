@@ -38,7 +38,7 @@ fn list_app_processes() -> Vec<ProcessInfo> {
 }
 
 #[command]
-fn execute_process(process_path: String) -> Result<(), String> {
+fn execute_process(process_path: String) -> Result<String, String> {
     let parent_dir = std::path::Path::new(&process_path)
         .parent()
         .ok_or("Não foi possível obter o diretório do executável")?;
@@ -48,10 +48,13 @@ fn execute_process(process_path: String) -> Result<(), String> {
         .spawn()
         .map_err(|error| format!("Erro ao iniciar o processo: {:?}", error))?;
 
-    Ok(())
+    Ok("Processo iniciado com sucesso".to_string()) // Return a success message
 }
 
-
+#[tauri::command]
+fn check_if_file_exists(path: String) -> bool {
+    std::path::Path::new(&path).exists()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
@@ -132,7 +135,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![list_app_processes, execute_process])
+        .invoke_handler(tauri::generate_handler![list_app_processes, execute_process, check_if_file_exists])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
