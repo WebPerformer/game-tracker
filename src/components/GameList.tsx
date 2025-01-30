@@ -26,9 +26,9 @@ const GameList: React.FC<GameListProps> = ({
       <div className="flex flex-col gap-2">
         <div className="collapse collapse-arrow rounded-md">
           <input type="checkbox" defaultChecked />
-          <div className="flex items-center gap-6 collapse-title bg-secondary rounded-md">
+          <div className="flex items-center gap-4 collapse-title bg-secondary rounded-md">
             All Games{' '}
-            <span className="bg-[#343437] px-2 py-1 rounded-md">
+            <span className="text-sm bg-[#343437] px-2 py-1 rounded-md">
               {processesToShow.length}
             </span>
           </div>

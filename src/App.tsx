@@ -5,7 +5,6 @@ import { load, Store } from '@tauri-apps/plugin-store'
 import '@fontsource-variable/inter'
 import './App.css'
 
-// Novo
 import Header from './components/Header'
 import GameEditModal from './components/GameEditModal'
 import GameList from './components/GameList'
@@ -13,13 +12,13 @@ import GameDetails from './components/GameDetails'
 
 interface ProcessInfo {
   name: string
-  path: string // Full path to the executable
-  time: number // Total accumulated time (in seconds)
-  running: boolean // Indicates whether the process is running
-  customName?: string // Custom name
-  coverUrl?: string // Cover image URL
-  addedDate: string // Date added
-  lastPlayedDate?: string // Last played date (optional)
+  path: string
+  time: number
+  running: boolean
+  customName?: string
+  coverUrl?: string
+  addedDate: string
+  lastPlayedDate?: string
 }
 
 interface SelectedGame extends ProcessInfo {
@@ -29,7 +28,7 @@ interface SelectedGame extends ProcessInfo {
 function App() {
   const [trackedProcesses, setTrackedProcesses] = useState<ProcessInfo[]>([])
   const [searchQuery, setSearchQuery] = useState<string>('')
-  const [selectedYear, setSelectedYear] = useState<string>('') // Estado para o filtro de ano
+  const [selectedYear, setSelectedYear] = useState<string>('')
   const [showModal, setShowModal] = useState<boolean>(false)
   const [currentProcess, setCurrentProcess] = useState<ProcessInfo | null>(null)
   const [visibleProcesses, setVisibleProcesses] = useState<number>(15)
@@ -41,10 +40,17 @@ function App() {
         path: process.path,
       })
 
-      // Ensure we update the selected game correctly
+      if (process.customName && fileExists) {
+        fetch(
+          `https://api.rawg.io/api/games?key=${import.meta.env.VITE_RAWG_API_KEY}&search=${process.customName}`,
+        )
+          .then((response) => response.json())
+          .then((data) => console.log(data.results))
+      }
+
       setSelectedGame({
         ...process,
-        fileExists: fileExists as boolean, // Add fileExists to the game object
+        fileExists: fileExists as boolean,
       })
     } catch (error) {
       console.error('Error checking file existence:', error)
@@ -55,7 +61,7 @@ function App() {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = document.documentElement
       if (scrollTop + clientHeight >= scrollHeight - 5) {
-        setVisibleProcesses((prev) => prev + 15) // Carrega mais 15 itens
+        setVisibleProcesses((prev) => prev + 15)
       }
     }
 
@@ -64,7 +70,7 @@ function App() {
   }, [])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const storeRef = useRef<Store | null>(null) // Referência para o Store
+  const storeRef = useRef<Store | null>(null)
 
   useEffect(() => {
     const initializeStore = async () => {
@@ -72,13 +78,11 @@ function App() {
         autoSave: true,
       })
 
-      // Carregue os processos armazenados
       const storedProcesses = (await storeRef.current.get('processes')) || []
-      // Garante que o tipo de storedProcesses é ProcessInfo[]
       if (Array.isArray(storedProcesses)) {
         setTrackedProcesses(storedProcesses)
       } else {
-        setTrackedProcesses([]) // Caso o valor não seja um array, substitua por um array vazio
+        setTrackedProcesses([])
       }
     }
 
@@ -89,7 +93,6 @@ function App() {
     new Set(trackedProcesses.map((p) => new Date(p.addedDate).getFullYear())),
   ).map(String)
 
-  // Filtrar com base na busca e no ano selecionado
   const filteredProcesses = trackedProcesses.filter((process) => {
     const matchesSearch =
       process.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,7 +115,7 @@ function App() {
       })
 
       if (file && typeof file === 'string') {
-        const processPath = file // Aqui já temos o caminho completo
+        const processPath = file
         const processName = file.split('\\').pop() || file
         const alreadyTracked = trackedProcesses.some(
           (p) => p.name === processName,
@@ -121,7 +124,7 @@ function App() {
         if (!alreadyTracked) {
           const newProcess = {
             name: processName,
-            path: processPath, // Salve o caminho completo
+            path: processPath,
             time: 0,
             running: false,
             addedDate: new Date().toISOString(),
@@ -144,9 +147,8 @@ function App() {
     setTrackedProcesses(updatedProcesses)
 
     if (storeRef.current) {
-      // Atualiza o Store
       await storeRef.current.set('processes', updatedProcesses)
-      await storeRef.current.save() // Salva manualmente se necessário
+      await storeRef.current.save()
     } else {
       console.error('Store não inicializado.')
     }
@@ -165,7 +167,7 @@ function App() {
               time: newTime,
               running: isRunning,
               lastPlayedDate: !isRunning
-                ? new Date().toISOString() // Update lastPlayedDate when running changes to false
+                ? new Date().toISOString()
                 : process.lastPlayedDate,
             }
           : process,
@@ -179,7 +181,7 @@ function App() {
             time: newTime,
             running: isRunning,
             lastPlayedDate: !isRunning
-              ? new Date().toISOString() // Update lastPlayedDate when running changes to false
+              ? new Date().toISOString()
               : process.lastPlayedDate,
           }
         : process,
@@ -194,15 +196,14 @@ function App() {
       console.error('Store não inicializado.')
     }
 
-    // Update selectedGame when process running changes
     if (selectedGame?.name === name) {
       setSelectedGame((prevSelectedGame) => ({
         ...prevSelectedGame!,
         running: isRunning,
-        time: newTime, // Update the time when running state changes
+        time: newTime,
         lastPlayedDate: !isRunning
           ? new Date().toISOString()
-          : prevSelectedGame?.lastPlayedDate, // Update lastPlayedDate when running changes to false
+          : prevSelectedGame?.lastPlayedDate,
       }))
     }
   }
@@ -210,12 +211,11 @@ function App() {
   const getLastPlayedTime = (lastPlayedDate: Date | string) => {
     const now = new Date()
 
-    // If the date is a string, convert it to a Date object
     const lastPlayed = new Date(lastPlayedDate)
 
     const diffInSeconds = Math.floor(
       (now.getTime() - lastPlayed.getTime()) / 1000,
-    ) // Ensure both are Date objects
+    )
 
     const days = Math.floor(diffInSeconds / (3600 * 24))
     const hours = Math.floor((diffInSeconds % (3600 * 24)) / 3600)
@@ -245,9 +245,9 @@ function App() {
 
           if (isRunning) {
             const updatedTime = process.time + 1
-            updateProcessTime(process.name, updatedTime, true) // Atualiza tempo e estado
+            updateProcessTime(process.name, updatedTime, true)
           } else if (process.running) {
-            updateProcessTime(process.name, process.time, false) // Atualiza para "não rodando"
+            updateProcessTime(process.name, process.time, false)
           }
         })
       } catch (error) {
@@ -276,7 +276,6 @@ function App() {
 
       setTrackedProcesses(updatedProcesses)
 
-      // Atualiza e salva no Store
       await storeRef.current.set('processes', updatedProcesses)
       await storeRef.current.save()
 
@@ -306,16 +305,16 @@ function App() {
 
       <div className="flex gap-10">
         <GameList
-          processesToShow={processesToShow} // Passando a lista de processos filtrados
-          selectedGame={selectedGame} // Passando o jogo selecionado
-          handleGameClick={handleGameClick} // Passando a função de clique
+          processesToShow={processesToShow}
+          selectedGame={selectedGame}
+          handleGameClick={handleGameClick}
         />
 
         <div
-          className="flex flex-col sticky top-14 max-w-[900px] mx-auto z-10" // Garante que o sticky funcione corretamente
+          className="flex flex-col sticky top-14 max-w-[900px] mx-auto z-10"
           style={{
-            maxHeight: 'calc(100vh - 2rem)', // Garante que a altura da área não ultrapasse a tela
-            overflowY: 'auto', // Permite rolagem vertical
+            maxHeight: 'calc(100vh - 2rem)',
+            overflowY: 'auto',
           }}
         >
           {selectedGame ? (
