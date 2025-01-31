@@ -36,7 +36,7 @@ const Header: FC<HeaderProps> = ({
               placeholder="Search Games..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-secondary border-2 border-secondary px-3 py-1 rounded-md pl-9 pr-9 placeholder:text-textGray"
+              className="w-[287px] bg-secondary border-2 border-secondary px-3 py-1 rounded-md pl-9 pr-9 placeholder:text-textGray"
             />
             <MagnifyingGlassIcon className="absolute top-[10px] left-3 size-4 text-textGray" />
             {searchQuery && (
@@ -66,7 +66,7 @@ const Header: FC<HeaderProps> = ({
           onClick={handleAddProcess}
           className="text-secondary bg-white font-semibold px-3 py-1 border-2 border-secondary rounded-md"
         >
-          Adicionar
+          Add Game
         </button>
       </div>
     </div>

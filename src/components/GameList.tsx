@@ -1,6 +1,7 @@
 import React from 'react'
 
 interface ProcessInfo {
+  id: number // id field is required
   name: string
   path: string
   time: number
@@ -8,6 +9,7 @@ interface ProcessInfo {
   customName?: string
   coverUrl?: string
   addedDate: string
+  lastPlayedDate?: string
 }
 
 interface GameListProps {
@@ -28,7 +30,7 @@ const GameList: React.FC<GameListProps> = ({
           <input type="checkbox" defaultChecked />
           <div className="flex items-center gap-4 collapse-title bg-secondary rounded-md">
             All Games{' '}
-            <span className="text-sm bg-[#343437] px-2 py-1 rounded-md">
+            <span className="text-sm bg-foreground px-2 py-1 rounded-md">
               {processesToShow.length}
             </span>
           </div>
@@ -49,7 +51,10 @@ const GameList: React.FC<GameListProps> = ({
                     onClick={() => handleGameClick(process)}
                   >
                     <img
-                      src={process.coverUrl || 'https://via.placeholder.com/56'}
+                      src={
+                        process.coverUrl ||
+                        'https://i.pinimg.com/736x/34/8d/53/348d53c456c2826821d17f421996031b.jpg'
+                      }
                       alt={process.customName || process.name}
                       className="w-8 h-8 object-cover rounded"
                     />

@@ -3,6 +3,7 @@ import { PlayIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
 
 // Define the type for the selected game
 interface GameInfo {
+  id: number
   name: string
   customName?: string
   coverUrl?: string
@@ -36,13 +37,16 @@ const GameDetails: React.FC<GameDetailsProps> = ({
   }
 
   return (
-    <div className="flex gap-10 items-end">
+    <div className="rounded-xl flex items-center">
       <img
-        src={selectedGame.coverUrl || 'https://via.placeholder.com/40'}
+        src={
+          selectedGame.coverUrl ||
+          'https://i.pinimg.com/736x/34/8d/53/348d53c456c2826821d17f421996031b.jpg'
+        }
         alt={selectedGame.customName || selectedGame.name}
         className="w-[263px] h-[350px] object-cover rounded-xl"
       />
-      <div className="mb-8">
+      <div className="p-10">
         <span className="text-4xl uppercase font-black">
           {selectedGame.customName || selectedGame.name}
         </span>
@@ -67,7 +71,7 @@ const GameDetails: React.FC<GameDetailsProps> = ({
         <div className="flex items-center gap-2">
           {selectedGame.fileExists ? (
             selectedGame.running ? (
-              <button className="flex items-center gap-1 bg-secondary px-8 py-1 border-2 border-secondary text-textGray rounded-md cursor-default">
+              <button className="flex items-center gap-1 bg-foreground px-8 py-1 border-2 border-foreground text-textGray rounded-md cursor-default">
                 Running
               </button>
             ) : (
@@ -79,19 +83,19 @@ const GameDetails: React.FC<GameDetailsProps> = ({
               </button>
             )
           ) : (
-            <div className="px-8 py-1 bg-secondary border-2 border-secondary text-textGray font-medium rounded-md cursor-not-allowed">
+            <div className="px-8 py-1 bg-foreground border-2 border-foreground text-textGray font-medium rounded-md cursor-not-allowed">
               Uninstalled
             </div>
           )}
 
           <button
-            className="px-2 py-2 bg-secondary rounded-md border-2 border-secondary"
+            className="px-2 py-2 bg-foreground rounded-md border-2 border-foreground"
             onClick={() => handleOpenModal(selectedGame)}
           >
             <PencilIcon className="size-4 text-textGray" />
           </button>
           <button
-            className="px-2 py-2 bg-secondary rounded-md border-2 border-secondary"
+            className="px-2 py-2 bg-foreground rounded-md border-2 border-foreground"
             onClick={() => handleRemoveProcess(selectedGame.name)}
           >
             <TrashIcon className="size-4 text-textGray" />
