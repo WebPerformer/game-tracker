@@ -1,37 +1,49 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { Store } from '@tauri-apps/plugin-store'
+import { open } from '@tauri-apps/plugin-dialog'
+import { load, Store } from '@tauri-apps/plugin-store'
 import {
   MagnifyingGlassIcon,
   XCircleIcon,
   ArrowTurnRightUpIcon,
 } from '@heroicons/react/24/solid'
 
-interface RawgModalProps {
+interface ProcessInfo {
+  id: number
+  name: string
+  path: string
+  time: number
+  running: boolean
+  addedDate: string
+  fileExists: boolean
+  coverUrl?: string
+}
+
+interface IgdbModalProps {
   onClose: () => void
   onSelectGame: (name: string, id: number, cover: string) => void
   storeRef: React.MutableRefObject<Store | null>
-  onSave: (customName: string, coverUrl: string) => Promise<void>
-  gameId: number
-  gameName: string
+  setTrackedProcesses: React.Dispatch<React.SetStateAction<ProcessInfo[]>>
+  setCurrentProcess: React.Dispatch<React.SetStateAction<ProcessInfo | null>>
+  setSelectedGame: React.Dispatch<React.SetStateAction<ProcessInfo | null>>
+  trackedProcesses: ProcessInfo[] // Add this prop to access the state
 }
 
 interface Game {
   id: number
   cover: {
-    id: number
     image_id: string
   }
   name: string
 }
 
-const RawgModal: React.FC<RawgModalProps> = ({
+const IgdbModal: React.FC<IgdbModalProps> = ({
   onClose,
-  onSelectGame,
+  setTrackedProcesses,
+  setCurrentProcess,
+  setSelectedGame,
+  trackedProcesses,
   storeRef,
-  onSave,
-  gameId,
-  gameName,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [games, setGames] = useState<Game[]>([])
@@ -42,12 +54,8 @@ const RawgModal: React.FC<RawgModalProps> = ({
 
     setLoading(true)
     try {
-      const response = await invoke('search_games', {
-        query: searchQuery,
-      })
-
+      const response = await invoke('search_games', { query: searchQuery })
       const games = Array.isArray(response) ? response : []
-
       setGames(games)
     } catch (error) {
       console.error('Error fetching games:', error)
@@ -56,9 +64,80 @@ const RawgModal: React.FC<RawgModalProps> = ({
     }
   }
 
-  const handleGameSelect = (name: string, id: number, cover: string) => {
-    onSelectGame(name, id, cover)
-    onClose()
+  const handleSaveProcess = async (selectedGame: Game) => {
+    try {
+      const file = await open({
+        multiple: false,
+        filters: [{ name: 'Executables', extensions: ['exe'] }],
+      })
+
+      if (file && typeof file === 'string') {
+        const processPath = file
+        const processName = file.split('\\').pop() || file
+
+        // Check if the process is already being tracked
+        const alreadyTracked = trackedProcesses.some(
+          (p) => p.name === processName,
+        )
+
+        if (!alreadyTracked) {
+          const newProcess: ProcessInfo = {
+            id: selectedGame.id, // Use API ID
+            name: selectedGame.name,
+            path: processPath,
+            time: 0,
+            running: false,
+            addedDate: new Date().toISOString(),
+            fileExists: true,
+            coverUrl: `https://images.igdb.com/igdb/image/upload/t_1080p/${selectedGame.cover.image_id}.jpg`,
+          }
+
+          // Update state with the new process
+          setTrackedProcesses((prev) => [...prev, newProcess])
+
+          // Save to localStorage as a fallback (optional)
+          localStorage.setItem(processName, JSON.stringify(newProcess))
+
+          // Update selected process states
+          setCurrentProcess(newProcess)
+          setSelectedGame(newProcess)
+
+          try {
+            // Ensure storeRef.current is initialized before using it
+            if (!storeRef.current) {
+              const store = await load('D:\\storageGames\\store.json', {
+                autoSave: true,
+              })
+              storeRef.current = store
+            }
+
+            // Retrieve existing processes (if any), fallback to empty array if not found
+            const existingProcesses =
+              (await storeRef.current.get('processes')) || []
+
+            // Ensure existingProcesses is always an array
+            if (!Array.isArray(existingProcesses)) {
+              throw new Error('Stored processes data is not an array')
+            }
+
+            // Save the process info in the store
+            await storeRef.current.set('processes', [
+              ...existingProcesses,
+              newProcess,
+            ])
+            await storeRef.current.save()
+            console.log('Process saved to store:', newProcess)
+          } catch (error) {
+            console.error('Failed to save process to store:', error)
+          }
+
+          // Close modal after saving
+          onClose()
+        }
+      }
+    } catch (error) {
+      console.error('Error selecting file:', error)
+    }
   }
 
   return (
@@ -101,9 +180,7 @@ const RawgModal: React.FC<RawgModalProps> = ({
                 {games.map((game: Game) => (
                   <li
                     key={game.id}
-                    onClick={() =>
-                      handleGameSelect(game.name, game.id, game.cover.image_id)
-                    }
+                    onClick={() => handleSaveProcess(game)}
                     className="flex gap-4 items-center bg-secondary p-3 rounded-md cursor-pointer hover:bg-hoverBackground"
                   >
                     {game.cover?.image_id && (
@@ -127,4 +204,4 @@ const RawgModal: React.FC<RawgModalProps> = ({
   )
 }
 
-export default RawgModal
+export default IgdbModal

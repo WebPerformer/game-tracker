@@ -187,7 +187,7 @@ const GameDetails: React.FC<GameDetailsProps> = ({
       {gameToDelete && (
         <ConfirmationModal
           title="Confirm Deletion"
-          message={`Are you sure you want to remove ${gameToDelete.customName}?`}
+          message={`Are you sure you want to remove ${gameToDelete.name}?`}
           onConfirm={removeGame}
           onCancel={() => setGameToDelete(null)}
         />

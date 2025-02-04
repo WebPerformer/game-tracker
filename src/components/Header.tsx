@@ -11,7 +11,7 @@ interface HeaderProps {
   selectedYear: string
   setSelectedYear: (year: string) => void
   availableYears: string[]
-  handleAddProcess: () => void
+  setShowIgdbModal: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 const Header: FC<HeaderProps> = ({
@@ -20,12 +20,13 @@ const Header: FC<HeaderProps> = ({
   selectedYear,
   setSelectedYear,
   availableYears,
-  handleAddProcess,
+  setShowIgdbModal,
 }) => {
   return (
     <div>
       <h1 className="text-xl font-medium mt-2 mb-6">
-        My Library <span className="text-xs text-textGray">Version 1.2</span>
+        My Library{' '}
+        <span className="text-xs text-textGray">Beta Version 2.1</span>
       </h1>
       <div className="flex justify-between my-4">
         <div className="flex items-center gap-2">
@@ -63,7 +64,7 @@ const Header: FC<HeaderProps> = ({
           ))}
         </select>
         <button
-          onClick={handleAddProcess}
+          onClick={() => setShowIgdbModal(true)}
           className="text-secondary bg-white font-semibold px-3 py-1 border-2 border-secondary rounded-md"
         >
           Add Game

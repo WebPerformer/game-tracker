@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
 import { load, Store } from '@tauri-apps/plugin-store'
 import '@fontsource-variable/inter'
 import './App.css'
@@ -8,7 +7,7 @@ import './App.css'
 import Header from './components/Header'
 import GameList from './components/GameList'
 import GameDetails from './components/GameDetails'
-import RawgModal from './components/RawgModal'
+import IgdbModal from './components/IgdbModal'
 
 interface ProcessInfo {
   id: number
@@ -32,10 +31,9 @@ function App() {
   const [trackedProcesses, setTrackedProcesses] = useState<ProcessInfo[]>([])
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [selectedYear, setSelectedYear] = useState<string>('')
-  const [showRawgModal, setShowRawgModal] = useState<boolean>(false)
-  const [, setShowModal] = useState<boolean>(false)
-  const [currentProcess, setCurrentProcess] = useState<ProcessInfo | null>(null)
-  const [visibleProcesses, setVisibleProcesses] = useState<number>(15)
+  const [showIgdbModal, setShowIgdbModal] = useState<boolean>(false)
+  const [, setCurrentProcess] = useState<ProcessInfo | null>(null)
+  const [visibleProcesses, setVisibleProcesses] = useState<number>(30)
   const [selectedGame, setSelectedGame] = useState<SelectedGame | null>(null)
   const [, setGameToDelete] = useState<ProcessInfo | null>(null)
 
@@ -54,7 +52,7 @@ function App() {
       customName: '',
       coverUrl: '',
     })
-    setShowRawgModal(false)
+    setShowIgdbModal(false)
   }
 
   const handleGameClick = async (process: ProcessInfo) => {
@@ -75,8 +73,8 @@ function App() {
   useEffect(() => {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = document.documentElement
-      if (scrollTop + clientHeight >= scrollHeight - 50) {
-        setVisibleProcesses((prev) => prev + 50)
+      if (scrollTop + clientHeight >= scrollHeight - 5) {
+        setVisibleProcesses((prev) => prev + 30)
       }
     }
 
@@ -118,42 +116,6 @@ function App() {
   })
 
   const processesToShow = filteredProcesses.slice(0, visibleProcesses)
-
-  const handleAddProcess = async () => {
-    try {
-      const file = await open({
-        multiple: false,
-        filters: [{ name: 'Executables', extensions: ['exe'] }],
-      })
-
-      if (file && typeof file === 'string') {
-        const processPath = file
-        const processName = file.split('\\').pop() || file
-        const alreadyTracked = trackedProcesses.some(
-          (p) => p.name === processName,
-        )
-
-        if (!alreadyTracked) {
-          const newProcess = {
-            id: Date.now(),
-            name: processName,
-            path: processPath,
-            time: 0,
-            running: false,
-            addedDate: new Date().toISOString(),
-            fileExists: true,
-          }
-          setTrackedProcesses((prev) => [...prev, newProcess])
-          localStorage.setItem(processName, JSON.stringify(newProcess))
-          setCurrentProcess(newProcess)
-          setSelectedGame(newProcess)
-          setShowRawgModal(true)
-        }
-      }
-    } catch (error) {
-      console.error('Error selecting file:', error)
-    }
-  }
 
   const updateProcessTime = async (
     name: string,
@@ -259,47 +221,6 @@ function App() {
     return () => clearInterval(interval)
   }, [trackedProcesses])
 
-  const handleSaveChanges = async (customName: string, coverUrl: string) => {
-    if (!storeRef.current) {
-      console.error('Store não inicializado.')
-      return
-    }
-
-    if (currentProcess) {
-      let fileExists = false
-      try {
-        fileExists = await invoke<boolean>('check_if_file_exists', {
-          path: currentProcess.path,
-        })
-      } catch (error) {
-        console.error('Erro ao verificar se o arquivo existe:', error)
-      }
-
-      const updatedProcess = {
-        ...currentProcess,
-        customName,
-        coverUrl,
-        fileExists,
-      }
-
-      const updatedProcesses = trackedProcesses.map((p) =>
-        p.name === currentProcess.name ? updatedProcess : p,
-      )
-
-      setTrackedProcesses(updatedProcesses)
-
-      await storeRef.current.set('processes', updatedProcesses)
-      await storeRef.current.save()
-
-      setSelectedGame({
-        ...updatedProcess,
-        fileExists,
-      })
-
-      setShowModal(false)
-    }
-  }
-
   const handlePlayProcess = async (processPath: string) => {
     try {
       const result = await invoke('execute_process', { processPath })
@@ -317,7 +238,7 @@ function App() {
         selectedYear={selectedYear}
         setSelectedYear={setSelectedYear}
         availableYears={availableYears}
-        handleAddProcess={handleAddProcess}
+        setShowIgdbModal={setShowIgdbModal}
       />
 
       <div className="flex gap-4">
@@ -353,14 +274,15 @@ function App() {
         </div>
       </div>
 
-      {showRawgModal && selectedGame && (
-        <RawgModal
+      {showIgdbModal && (
+        <IgdbModal
           onSelectGame={handleGameSelect}
-          gameId={selectedGame.id}
-          gameName={selectedGame.name}
           storeRef={storeRef}
-          onSave={handleSaveChanges}
-          onClose={() => setShowRawgModal(false)}
+          onClose={() => setShowIgdbModal(false)}
+          setTrackedProcesses={setTrackedProcesses}
+          setCurrentProcess={setCurrentProcess}
+          setSelectedGame={setSelectedGame}
+          trackedProcesses={trackedProcesses}
         />
       )}
     </main>
