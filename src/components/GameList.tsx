@@ -10,6 +10,7 @@ interface ProcessInfo {
   coverUrl?: string
   addedDate: string
   lastPlayedDate?: string
+  fileExists: boolean
 }
 
 interface GameListProps {

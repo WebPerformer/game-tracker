@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
+import { Store } from '@tauri-apps/plugin-store'
 import {
   MagnifyingGlassIcon,
   XCircleIcon,
@@ -7,12 +9,32 @@ import {
 
 interface RawgModalProps {
   onClose: () => void
-  onSelectGame: (name: string, id: number) => void
+  onSelectGame: (name: string, id: number, cover: string) => void
+  storeRef: React.MutableRefObject<Store | null>
+  onSave: (customName: string, coverUrl: string) => Promise<void>
+  gameId: number
+  gameName: string
 }
 
-const RawgModal: React.FC<RawgModalProps> = ({ onClose, onSelectGame }) => {
+interface Game {
+  id: number
+  cover: {
+    id: number
+    image_id: string
+  }
+  name: string
+}
+
+const RawgModal: React.FC<RawgModalProps> = ({
+  onClose,
+  onSelectGame,
+  storeRef,
+  onSave,
+  gameId,
+  gameName,
+}) => {
   const [searchQuery, setSearchQuery] = useState<string>('')
-  const [games, setGames] = useState<any[]>([])
+  const [games, setGames] = useState<Game[]>([])
   const [loading, setLoading] = useState<boolean>(false)
 
   const handleSearch = async () => {
@@ -20,11 +42,13 @@ const RawgModal: React.FC<RawgModalProps> = ({ onClose, onSelectGame }) => {
 
     setLoading(true)
     try {
-      const response = await fetch(
-        `https://api.rawg.io/api/games?key=${import.meta.env.VITE_RAWG_API_KEY}&search=${searchQuery}`,
-      )
-      const data = await response.json()
-      setGames(data.results || [])
+      const response = await invoke('search_games', {
+        query: searchQuery,
+      })
+
+      const games = Array.isArray(response) ? response : []
+
+      setGames(games)
     } catch (error) {
       console.error('Error fetching games:', error)
     } finally {
@@ -32,10 +56,8 @@ const RawgModal: React.FC<RawgModalProps> = ({ onClose, onSelectGame }) => {
     }
   }
 
-  const handleGameSelect = (name: string, id: number) => {
-    onSelectGame(name, id)
-    const igdbUrl = `https://www.igdb.com/search?utf8=%E2%9C%93&q=${encodeURIComponent(name)}`
-    window.open(igdbUrl, '_blank')
+  const handleGameSelect = (name: string, id: number, cover: string) => {
+    onSelectGame(name, id, cover)
     onClose()
   }
 
@@ -76,17 +98,19 @@ const RawgModal: React.FC<RawgModalProps> = ({ onClose, onSelectGame }) => {
           <div className="mt-4">
             {games.length > 0 ? (
               <ul className="grid grid-cols-2 gap-4">
-                {games.map((game: any) => (
+                {games.map((game: Game) => (
                   <li
                     key={game.id}
-                    onClick={() => handleGameSelect(game.name, game.id)}
+                    onClick={() =>
+                      handleGameSelect(game.name, game.id, game.cover.image_id)
+                    }
                     className="flex gap-4 items-center bg-secondary p-3 rounded-md cursor-pointer hover:bg-hoverBackground"
                   >
-                    {game.background_image && (
+                    {game.cover?.image_id && (
                       <img
-                        src={game.background_image}
+                        src={`https://images.igdb.com/igdb/image/upload/t_1080p/${game.cover.image_id}.jpg`}
                         alt={game.name}
-                        className="w-32 h-20 object-cover rounded-md"
+                        className="rounded-md"
                       />
                     )}
                     <h3 className="text-lg text-start">{game.name}</h3>
@@ -94,7 +118,7 @@ const RawgModal: React.FC<RawgModalProps> = ({ onClose, onSelectGame }) => {
                 ))}
               </ul>
             ) : (
-              <p>Nenhum jogo encontrado.</p>
+              <p>No games found.</p>
             )}
           </div>
         </div>

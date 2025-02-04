@@ -6,11 +6,9 @@ import '@fontsource-variable/inter'
 import './App.css'
 
 import Header from './components/Header'
-import GameEditModal from './components/GameEditModal'
 import GameList from './components/GameList'
 import GameDetails from './components/GameDetails'
 import RawgModal from './components/RawgModal'
-import ConfirmationModal from './components/ConfirmationModal'
 
 interface ProcessInfo {
   id: number
@@ -22,6 +20,7 @@ interface ProcessInfo {
   coverUrl?: string
   addedDate: string
   lastPlayedDate?: string
+  fileExists: boolean
 }
 
 interface SelectedGame extends ProcessInfo {
@@ -34,11 +33,11 @@ function App() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [selectedYear, setSelectedYear] = useState<string>('')
   const [showRawgModal, setShowRawgModal] = useState<boolean>(false)
-  const [showModal, setShowModal] = useState<boolean>(false)
+  const [, setShowModal] = useState<boolean>(false)
   const [currentProcess, setCurrentProcess] = useState<ProcessInfo | null>(null)
   const [visibleProcesses, setVisibleProcesses] = useState<number>(15)
   const [selectedGame, setSelectedGame] = useState<SelectedGame | null>(null)
-  const [gameToDelete, setGameToDelete] = useState<ProcessInfo | null>(null)
+  const [, setGameToDelete] = useState<ProcessInfo | null>(null)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const storeRef = useRef<Store | null>(null)
@@ -56,7 +55,6 @@ function App() {
       coverUrl: '',
     })
     setShowRawgModal(false)
-    setShowModal(true)
   }
 
   const handleGameClick = async (process: ProcessInfo) => {
@@ -64,12 +62,6 @@ function App() {
       const fileExists = await invoke('check_if_file_exists', {
         path: process.path,
       })
-
-      if (process.customName && fileExists) {
-        fetch(
-          `https://api.rawg.io/api/games?key=${import.meta.env.VITE_RAWG_API_KEY}&search=${process.customName}`,
-        ).then((response) => response.json())
-      }
 
       setSelectedGame({
         ...process,
@@ -83,8 +75,8 @@ function App() {
   useEffect(() => {
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = document.documentElement
-      if (scrollTop + clientHeight >= scrollHeight - 5) {
-        setVisibleProcesses((prev) => prev + 15)
+      if (scrollTop + clientHeight >= scrollHeight - 50) {
+        setVisibleProcesses((prev) => prev + 50)
       }
     }
 
@@ -143,42 +135,24 @@ function App() {
 
         if (!alreadyTracked) {
           const newProcess = {
-            id: Date.now(), // Generate a unique id based on current timestamp
+            id: Date.now(),
             name: processName,
             path: processPath,
             time: 0,
             running: false,
             addedDate: new Date().toISOString(),
+            fileExists: true,
           }
           setTrackedProcesses((prev) => [...prev, newProcess])
           localStorage.setItem(processName, JSON.stringify(newProcess))
           setCurrentProcess(newProcess)
+          setSelectedGame(newProcess)
           setShowRawgModal(true)
         }
       }
     } catch (error) {
       console.error('Error selecting file:', error)
     }
-  }
-
-  const handleRemoveProcess = async () => {
-    console.log(gameToDelete)
-    if (!gameToDelete) return
-
-    const updatedProcesses = trackedProcesses.filter(
-      (p) => p.name !== gameToDelete.name,
-    )
-    setTrackedProcesses(updatedProcesses)
-    setSelectedGame(null)
-
-    if (storeRef.current) {
-      await storeRef.current.set('processes', updatedProcesses)
-      await storeRef.current.save()
-    } else {
-      console.error('Store not initialized.')
-    }
-
-    setGameToDelete(null) // Close the modal
   }
 
   const updateProcessTime = async (
@@ -285,11 +259,6 @@ function App() {
     return () => clearInterval(interval)
   }, [trackedProcesses])
 
-  const handleOpenModal = (process: ProcessInfo) => {
-    setCurrentProcess(process)
-    setShowModal(true)
-  }
-
   const handleSaveChanges = async (customName: string, coverUrl: string) => {
     if (!storeRef.current) {
       console.error('Store não inicializado.')
@@ -297,7 +266,6 @@ function App() {
     }
 
     if (currentProcess) {
-      // Verifica novamente se o arquivo existe antes de salvar
       let fileExists = false
       try {
         fileExists = await invoke<boolean>('check_if_file_exists', {
@@ -311,7 +279,7 @@ function App() {
         ...currentProcess,
         customName,
         coverUrl,
-        fileExists, // Atualiza o fileExists corretamente
+        fileExists,
       }
 
       const updatedProcesses = trackedProcesses.map((p) =>
@@ -323,10 +291,9 @@ function App() {
       await storeRef.current.set('processes', updatedProcesses)
       await storeRef.current.save()
 
-      // Atualiza também o jogo selecionado com o estado correto
       setSelectedGame({
         ...updatedProcess,
-        fileExists, // Atualiza corretamente
+        fileExists,
       })
 
       setShowModal(false)
@@ -370,10 +337,15 @@ function App() {
           {selectedGame ? (
             <GameDetails
               selectedGame={selectedGame}
+              setSelectedGame={setSelectedGame}
               handlePlayProcess={handlePlayProcess}
-              handleOpenModal={handleOpenModal}
               handleRemoveProcess={() => setGameToDelete(selectedGame)}
               getLastPlayedTime={getLastPlayedTime}
+              trackedProcesses={trackedProcesses.map((process) => ({
+                ...process,
+                fileExists: process.fileExists ?? true,
+              }))}
+              setTrackedProcesses={setTrackedProcesses}
             />
           ) : (
             <span className="text-lg">Selecione um jogo</span>
@@ -381,32 +353,14 @@ function App() {
         </div>
       </div>
 
-      {showRawgModal && (
+      {showRawgModal && selectedGame && (
         <RawgModal
           onSelectGame={handleGameSelect}
-          onClose={() => setShowRawgModal(false)}
-        />
-      )}
-
-      {showModal && selectedGame && (
-        <GameEditModal
-          gameId={selectedGame.id} // Pass the selected game's ID
-          gameName={selectedGame.name} // Pass the selected game's name
+          gameId={selectedGame.id}
+          gameName={selectedGame.name}
           storeRef={storeRef}
           onSave={handleSaveChanges}
-          onClose={() => {
-            setShowModal(false)
-            setSelectedGame(null)
-          }}
-        />
-      )}
-
-      {gameToDelete && (
-        <ConfirmationModal
-          title="Confirm Deletion"
-          message={`Are you sure you want to remove ${gameToDelete.customName}?`}
-          onConfirm={handleRemoveProcess}
-          onCancel={() => setGameToDelete(null)}
+          onClose={() => setShowRawgModal(false)}
         />
       )}
     </main>
