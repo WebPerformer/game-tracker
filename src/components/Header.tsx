@@ -8,18 +8,12 @@ import {
 interface HeaderProps {
   searchQuery: string
   setSearchQuery: (query: string) => void
-  selectedYear: string
-  setSelectedYear: (year: string) => void
-  availableYears: string[]
   setShowIgdbModal: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 const Header: FC<HeaderProps> = ({
   searchQuery,
   setSearchQuery,
-  selectedYear,
-  setSelectedYear,
-  availableYears,
   setShowIgdbModal,
 }) => {
   return (
@@ -51,18 +45,6 @@ const Header: FC<HeaderProps> = ({
             <AdjustmentsHorizontalIcon className="size-6 text-textGray" />
           </button>
         </div>
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
-          className="hidden"
-        >
-          <option value="">Todos os anos</option>
-          {availableYears.map((year) => (
-            <option key={year} value={year.toString()}>
-              {year}
-            </option>
-          ))}
-        </select>
         <button
           onClick={() => setShowIgdbModal(true)}
           className="text-secondary bg-white font-semibold px-3 py-1 border-2 border-secondary rounded-md"

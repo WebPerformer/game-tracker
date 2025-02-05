@@ -14,6 +14,7 @@ interface ProcessInfo {
   path: string
   time: number
   running: boolean
+  customName?: string
   addedDate: string
   fileExists: boolean
   coverUrl?: string
@@ -24,7 +25,6 @@ interface IgdbModalProps {
   onSelectGame: (name: string, id: number, cover: string) => void
   storeRef: React.MutableRefObject<Store | null>
   setTrackedProcesses: React.Dispatch<React.SetStateAction<ProcessInfo[]>>
-  setCurrentProcess: React.Dispatch<React.SetStateAction<ProcessInfo | null>>
   setSelectedGame: React.Dispatch<React.SetStateAction<ProcessInfo | null>>
   trackedProcesses: ProcessInfo[] // Add this prop to access the state
 }
@@ -40,7 +40,6 @@ interface Game {
 const IgdbModal: React.FC<IgdbModalProps> = ({
   onClose,
   setTrackedProcesses,
-  setCurrentProcess,
   setSelectedGame,
   trackedProcesses,
   storeRef,
@@ -75,15 +74,15 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
         const processPath = file
         const processName = file.split('\\').pop() || file
 
-        // Check if the process is already being tracked
         const alreadyTracked = trackedProcesses.some(
           (p) => p.name === processName,
         )
 
         if (!alreadyTracked) {
           const newProcess: ProcessInfo = {
-            id: selectedGame.id, // Use API ID
-            name: selectedGame.name,
+            id: selectedGame.id,
+            name: processName,
+            customName: selectedGame.name || 'Unknown Game',
             path: processPath,
             time: 0,
             running: false,
@@ -99,7 +98,6 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
           localStorage.setItem(processName, JSON.stringify(newProcess))
 
           // Update selected process states
-          setCurrentProcess(newProcess)
           setSelectedGame(newProcess)
 
           try {
@@ -165,7 +163,131 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
             </div>
             <button onClick={handleSearch} disabled={loading}>
               {loading ? (
-                'Buscando...'
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="xMidYMid"
+                  width="32"
+                  height="32"
+                  style={{
+                    shapeRendering: 'auto',
+                    display: 'block',
+                    background: 'transparent',
+                  }}
+                >
+                  <g>
+                    <circle fill="#969698" r="10" cy="50" cx="84">
+                      <animate
+                        begin="0s"
+                        keySplines="0 0.5 0.5 1"
+                        values="10;0"
+                        keyTimes="0;1"
+                        calcMode="spline"
+                        dur="0.25s"
+                        repeatCount="indefinite"
+                        attributeName="r"
+                      />
+                      <animate
+                        begin="0s"
+                        values="#969698;#969698;#969698;#969698;#969698"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="discrete"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="fill"
+                      />
+                    </circle>
+                    <circle fill="#969698" r="10" cy="50" cx="16">
+                      <animate
+                        begin="0s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="0;0;10;10;10"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="r"
+                      />
+                      <animate
+                        begin="0s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="16;16;16;50;84"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="cx"
+                      />
+                    </circle>
+                    <circle fill="#969698" r="10" cy="50" cx="50">
+                      <animate
+                        begin="-0.25s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="0;0;10;10;10"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="r"
+                      />
+                      <animate
+                        begin="-0.25s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="16;16;16;50;84"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="cx"
+                      />
+                    </circle>
+                    <circle fill="#969698" r="10" cy="50" cx="84">
+                      <animate
+                        begin="-0.5s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="0;0;10;10;10"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="r"
+                      />
+                      <animate
+                        begin="-0.5s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="16;16;16;50;84"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="cx"
+                      />
+                    </circle>
+                    <circle fill="#969698" r="10" cy="50" cx="16">
+                      <animate
+                        begin="-0.75s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="0;0;10;10;10"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="r"
+                      />
+                      <animate
+                        begin="-0.75s"
+                        keySplines="0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1;0 0.5 0.5 1"
+                        values="16;16;16;50;84"
+                        keyTimes="0;0.25;0.5;0.75;1"
+                        calcMode="spline"
+                        dur="1s"
+                        repeatCount="indefinite"
+                        attributeName="cx"
+                      />
+                    </circle>
+                    <g />
+                  </g>
+                </svg>
               ) : (
                 <div className="bg-secondary p-2 rounded-md">
                   <ArrowTurnRightUpIcon className="size-4 text-textGray" />

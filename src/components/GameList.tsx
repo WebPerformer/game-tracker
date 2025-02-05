@@ -1,4 +1,5 @@
 import React from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
 interface ProcessInfo {
   id: number // id field is required
@@ -14,16 +15,33 @@ interface ProcessInfo {
 }
 
 interface GameListProps {
-  processesToShow: ProcessInfo[]
+  trackedProcesses: ProcessInfo[] | null
+  searchQuery: string
   selectedGame: ProcessInfo | null
-  handleGameClick: (process: ProcessInfo) => void
+  setSelectedGame: (game: ProcessInfo | null) => void
 }
 
 const GameList: React.FC<GameListProps> = ({
-  processesToShow,
+  trackedProcesses,
+  searchQuery,
   selectedGame,
-  handleGameClick,
+  setSelectedGame,
 }) => {
+  const handleGameClick = async (process: ProcessInfo) => {
+    try {
+      const fileExists = await invoke('check_if_file_exists', {
+        path: process.path,
+      })
+
+      setSelectedGame({
+        ...process,
+        fileExists: fileExists as boolean,
+      })
+    } catch (error) {
+      console.error('Error checking file existence:', error)
+    }
+  }
+
   return (
     <div className="max-w-[287px] min-w-[287px] flex-1">
       <div className="flex flex-col gap-2">
@@ -32,16 +50,26 @@ const GameList: React.FC<GameListProps> = ({
           <div className="flex items-center gap-4 collapse-title bg-secondary rounded-md">
             All Games{' '}
             <span className="text-sm bg-foreground px-2 py-1 rounded-md">
-              {processesToShow.length}
+              {trackedProcesses?.length}
             </span>
           </div>
           <div className="collapse-content p-0 mt-2">
             <ul className="list-disc">
-              {processesToShow
+              {(trackedProcesses || [])
+                .filter(
+                  (process) =>
+                    process.name
+                      .toLowerCase()
+                      .includes(searchQuery.toLowerCase()) ||
+                    (process.customName &&
+                      process.customName
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase())),
+                )
                 .sort((a, b) => {
-                  const dateA = new Date(a.addedDate).getTime() // Get timestamp for dateA
-                  const dateB = new Date(b.addedDate).getTime() // Get timestamp for dateB
-                  return dateB - dateA // Compare the timestamps
+                  const dateA = new Date(a.addedDate).getTime()
+                  const dateB = new Date(b.addedDate).getTime()
+                  return dateB - dateA
                 })
                 .map((process) => (
                   <div

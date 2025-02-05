@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { load, Store } from '@tauri-apps/plugin-store'
 import GameEditModal from './GameEditModal'
 import ConfirmationModal from './ConfirmationModal'
@@ -25,9 +26,6 @@ interface GameInfo {
 interface GameDetailsProps {
   selectedGame: GameInfo | null
   setSelectedGame: (game: GameInfo | null) => void
-  handlePlayProcess: (processPath: string) => void
-  handleRemoveProcess: (processName: string) => void
-  getLastPlayedTime: (lastPlayedDate: string) => string
   trackedProcesses: GameInfo[]
   setTrackedProcesses: React.Dispatch<React.SetStateAction<GameInfo[]>>
 }
@@ -35,8 +33,6 @@ interface GameDetailsProps {
 const GameDetails: React.FC<GameDetailsProps> = ({
   selectedGame,
   setSelectedGame,
-  handlePlayProcess,
-  getLastPlayedTime,
   trackedProcesses,
   setTrackedProcesses,
 }) => {
@@ -44,6 +40,130 @@ const GameDetails: React.FC<GameDetailsProps> = ({
   const [showModal, setShowModal] = useState<boolean>(false)
   const [gameToDelete, setGameToDelete] = useState<GameInfo | null>(null)
   const [currentProcess, setCurrentProcess] = useState<ProcessInfo | null>(null)
+
+  useEffect(() => {
+    const initializeStore = async () => {
+      const store = await load('D:\\storageGames\\store.json', {
+        autoSave: true,
+      })
+      storeRef.current = store // Set the store reference here
+    }
+
+    initializeStore()
+  }, [])
+
+  const updateProcessTime = async (
+    name: string,
+    newTime: number,
+    isRunning: boolean,
+  ) => {
+    setTrackedProcesses((prevProcesses) =>
+      prevProcesses.map((process) =>
+        process.name === name
+          ? {
+              ...process,
+              time: newTime,
+              running: isRunning,
+              lastPlayedDate: !isRunning
+                ? new Date().toISOString()
+                : process.lastPlayedDate,
+            }
+          : process,
+      ),
+    )
+
+    const updatedProcesses = trackedProcesses.map((process) =>
+      process.name === name
+        ? {
+            ...process,
+            time: newTime,
+            running: isRunning,
+            lastPlayedDate: !isRunning
+              ? new Date().toISOString()
+              : process.lastPlayedDate,
+          }
+        : process,
+    )
+
+    setTrackedProcesses(updatedProcesses)
+
+    if (storeRef.current) {
+      await storeRef.current.set('processes', updatedProcesses)
+      await storeRef.current.save()
+    } else {
+      console.error('Store não inicializado.')
+    }
+
+    if (selectedGame && selectedGame.name === name) {
+      setSelectedGame({
+        ...selectedGame,
+        running: isRunning,
+        time: newTime,
+        lastPlayedDate: !isRunning
+          ? new Date().toISOString()
+          : selectedGame.lastPlayedDate,
+      })
+    }
+  }
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const activeProcesses: { name: string; running: boolean }[] =
+          await invoke('list_app_processes')
+
+        trackedProcesses.forEach((process) => {
+          const isRunning = activeProcesses.some(
+            (active) => active.name === process.name,
+          )
+
+          if (isRunning) {
+            const updatedTime = process.time + 1
+            updateProcessTime(process.name, updatedTime, true)
+          } else if (process.running) {
+            updateProcessTime(process.name, process.time, false)
+          }
+        })
+      } catch (error) {
+        console.error('Error fetching active processes:', error)
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [trackedProcesses])
+
+  const handlePlayProcess = async (processPath: string) => {
+    try {
+      const result = await invoke('execute_process', { processPath })
+      console.log('Processo iniciado com sucesso:', result)
+    } catch (error) {
+      console.error('Erro ao tentar executar o processo:', error)
+    }
+  }
+
+  const getLastPlayedTime = (lastPlayedDate: Date | string) => {
+    const now = new Date()
+
+    const lastPlayed = new Date(lastPlayedDate)
+
+    const diffInSeconds = Math.floor(
+      (now.getTime() - lastPlayed.getTime()) / 1000,
+    )
+
+    const days = Math.floor(diffInSeconds / (3600 * 24))
+    const hours = Math.floor((diffInSeconds % (3600 * 24)) / 3600)
+    const minutes = Math.floor((diffInSeconds % 3600) / 60)
+
+    if (days > 0) {
+      return `${days} days(s) ago`
+    } else if (hours > 0) {
+      return `${hours} hours(s) ago`
+    } else if (minutes > 0) {
+      return `${minutes} minute(s) ago`
+    } else {
+      return 'recently'
+    }
+  }
 
   const handleOpenModal = (process: ProcessInfo) => {
     setCurrentProcess(process)
@@ -75,17 +195,6 @@ const GameDetails: React.FC<GameDetailsProps> = ({
     // Close the modal after saving
     setShowModal(false)
   }
-
-  useEffect(() => {
-    const initializeStore = async () => {
-      const store = await load('D:\\storageGames\\store.json', {
-        autoSave: true,
-      })
-      storeRef.current = store // Set the store reference here
-    }
-
-    initializeStore()
-  }, [])
 
   const removeGame = async () => {
     if (!gameToDelete || !storeRef.current) return
@@ -176,8 +285,8 @@ const GameDetails: React.FC<GameDetailsProps> = ({
       {showModal && currentProcess && selectedGame && (
         <GameEditModal
           currentProcess={currentProcess}
-          gameId={selectedGame.id} // Pass gameId
-          gameName={selectedGame.name} // Pass gameName
+          gameId={selectedGame.id}
+          gameName={selectedGame.name}
           storeRef={storeRef}
           onSave={handleSaveChanges}
           onClose={() => setShowModal(false)}
@@ -187,7 +296,7 @@ const GameDetails: React.FC<GameDetailsProps> = ({
       {gameToDelete && (
         <ConfirmationModal
           title="Confirm Deletion"
-          message={`Are you sure you want to remove ${gameToDelete.name}?`}
+          message={`Are you sure you want to remove ${gameToDelete.customName || gameToDelete.name}?`}
           onConfirm={removeGame}
           onCancel={() => setGameToDelete(null)}
         />
