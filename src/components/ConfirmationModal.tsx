@@ -24,13 +24,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           <div className="flex justify-center gap-3">
             <button
               onClick={onCancel}
-              className="bg-white text-secondary hover:bg-white hover:bg-opacity-90 px-8 py-2 rounded"
+              className="text-secondary bg-white font-semibold px-3 py-1 border-2 border-white rounded-md"
             >
               Cancel
             </button>
             <button
               onClick={onConfirm}
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-2 rounded"
+              className="bg-red-600 font-semibold px-3 py-1 border-2 border-red-600 rounded-md"
             >
               Remove
             </button>

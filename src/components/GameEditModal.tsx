@@ -59,9 +59,9 @@ const GameEditModal: React.FC<GameEditModalProps> = ({
       <div
         onClick={onClose}
         className="w-full h-screen fixed top-0 left-0 z-40 bg-black opacity-50"
-      ></div>
-      <div className="fixed top-2/4 left-2/4 -translate-x-1/2 -translate-y-1/2 flex flex-col gap-4 bg-[#1a1c2c] p-[20px] rounded-[8px] [box-shadow:0_4px_10px_rgba(0,_0,_0,_0.1)] w-[400px] text-center z-50">
-        <h2 className="text-[18px] font-medium">Editar Jogo</h2>
+      />
+      <div className="fixed top-2/4 left-2/4 -translate-x-1/2 -translate-y-1/2 flex flex-col gap-4 bg-background p-[20px] rounded-[8px] [box-shadow:0_4px_10px_rgba(0,_0,_0,_0.1)] w-[400px] text-center z-50">
+        <h2 className="text-[18px] font-medium">Edit Game</h2>
         <input
           type="text"
           value={customName}
@@ -76,7 +76,12 @@ const GameEditModal: React.FC<GameEditModalProps> = ({
           placeholder="URL da Capa"
           className="py-2 px-3 bg-transparent border-2 border-secondary rounded-md"
         />
-        <button onClick={handleSave}>Salvar</button>
+        <button
+          className="px-1 py-3 bg-secondary rounded-md hover:bg-foreground"
+          onClick={handleSave}
+        >
+          Salvar
+        </button>
       </div>
     </>
   )

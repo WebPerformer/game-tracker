@@ -15,9 +15,10 @@ interface ProcessInfo {
   time: number
   running: boolean
   customName?: string
-  addedDate: string
-  fileExists: boolean
   coverUrl?: string
+  addedDate: string
+  lastPlayedDate?: string
+  fileExists: boolean
 }
 
 interface IgdbModalProps {
@@ -140,17 +141,20 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
 
   return (
     <>
-      <div className="w-full h-screen fixed top-0 left-0 z-40 bg-black opacity-50" />
-      <div className="fixed top-2/4 left-2/4 -translate-x-1/2 -translate-y-1/2 w-2/3 max-w-[800px] h-2/3 flex flex-col gap-4 bg-background p-[20px] rounded-[8px] [box-shadow:0_4px_10px_rgba(0,_0,_0,_0.1)] text-center z-50 overflow-y-scroll">
+      <div
+        onClick={onClose}
+        className="w-full h-screen fixed top-0 left-0 z-40 bg-black opacity-50"
+      />
+      <div className="fixed top-2/4 left-2/4 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[800px] max-h-[500px]  flex flex-col gap-4 bg-background p-[20px] rounded-[8px] [box-shadow:0_4px_10px_rgba(0,_0,_0,_0.1)] text-center z-50 overflow-y-auto">
         <div className="modal-content">
           <h2 className="text-xl mb-4">Search Games</h2>
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-center gap-2 mb-8">
             <div className="relative w-fit">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Pesquise por um jogo..."
+                placeholder="Search for a game..."
                 className="w-[287px] bg-secondary border-2 border-secondary px-3 py-1 rounded-md pl-9 pr-9 placeholder:text-textGray"
               />
               <MagnifyingGlassIcon className="absolute top-[10px] left-3 size-4 text-textGray" />
@@ -289,7 +293,7 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
                   </g>
                 </svg>
               ) : (
-                <div className="bg-secondary p-2 rounded-md">
+                <div className="bg-secondary hover:bg-foreground p-2 rounded-md">
                   <ArrowTurnRightUpIcon className="size-4 text-textGray" />
                 </div>
               )}
@@ -298,12 +302,12 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
 
           <div className="mt-4">
             {games.length > 0 ? (
-              <ul className="grid grid-cols-2 gap-4">
+              <ul className="grid grid-cols-3 gap-2">
                 {games.map((game: Game) => (
                   <li
                     key={game.id}
                     onClick={() => handleSaveProcess(game)}
-                    className="flex gap-4 items-center bg-secondary p-3 rounded-md cursor-pointer hover:bg-hoverBackground"
+                    className="p-3 cursor-pointer hover:bg-secondary rounded-md"
                   >
                     {game.cover?.image_id && (
                       <img
@@ -312,7 +316,9 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
                         className="rounded-md"
                       />
                     )}
-                    <h3 className="text-lg text-start">{game.name}</h3>
+                    <h3 className="text-lg text-start mt-3 line-clamp-2">
+                      {game.name}
+                    </h3>
                   </li>
                 ))}
               </ul>

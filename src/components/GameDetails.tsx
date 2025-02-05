@@ -3,7 +3,11 @@ import { invoke } from '@tauri-apps/api/core'
 import { load, Store } from '@tauri-apps/plugin-store'
 import GameEditModal from './GameEditModal'
 import ConfirmationModal from './ConfirmationModal'
+
+// Icons
 import { PlayIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
+import { SlGameController } from 'react-icons/sl'
+import { FaCheck } from 'react-icons/fa6'
 
 interface ProcessInfo {
   name: string
@@ -21,6 +25,7 @@ interface GameInfo {
   path: string
   running: boolean
   fileExists: boolean
+  DS4Windows?: boolean
 }
 
 interface GameDetailsProps {
@@ -40,17 +45,55 @@ const GameDetails: React.FC<GameDetailsProps> = ({
   const [showModal, setShowModal] = useState<boolean>(false)
   const [gameToDelete, setGameToDelete] = useState<GameInfo | null>(null)
   const [currentProcess, setCurrentProcess] = useState<ProcessInfo | null>(null)
+  const [isDS4Enabled, setIsDS4Enabled] = useState<boolean>(false)
 
   useEffect(() => {
     const initializeStore = async () => {
-      const store = await load('D:\\storageGames\\store.json', {
-        autoSave: true,
-      })
-      storeRef.current = store // Set the store reference here
+      try {
+        const store = await load('D:\\storageGames\\store.json', {
+          autoSave: true,
+        })
+        storeRef.current = store
+
+        if (selectedGame) {
+          const savedProcesses = await store.get<GameInfo[]>('processes')
+          const gameData = savedProcesses?.find(
+            (game) => game.id === selectedGame.id,
+          )
+          setIsDS4Enabled(gameData?.DS4Windows ?? false)
+        }
+      } catch (error) {
+        console.error('Erro ao carregar o estado do DS4Windows:', error)
+      }
     }
 
     initializeStore()
-  }, [])
+  }, [selectedGame])
+
+  const toggleDS4Windows = async () => {
+    if (!selectedGame || !storeRef.current) return
+
+    const newState = !isDS4Enabled
+    setIsDS4Enabled(newState)
+
+    // Atualizar apenas o jogo selecionado no estado global
+    const updatedProcesses = trackedProcesses.map((game) =>
+      game.id === selectedGame.id ? { ...game, DS4Windows: newState } : game,
+    )
+
+    setTrackedProcesses(updatedProcesses)
+
+    try {
+      // Salvar apenas o jogo atualizado no JSON
+      await storeRef.current.set('processes', updatedProcesses)
+      await storeRef.current.save()
+      console.log(
+        `DS4Windows atualizado para ${newState} no jogo ${selectedGame.name}`,
+      )
+    } catch (error) {
+      console.error('Erro ao salvar o estado do DS4Windows:', error)
+    }
+  }
 
   const updateProcessTime = async (
     name: string,
@@ -135,6 +178,18 @@ const GameDetails: React.FC<GameDetailsProps> = ({
   const handlePlayProcess = async (processPath: string) => {
     try {
       const result = await invoke('execute_process', { processPath })
+
+      if (isDS4Enabled) {
+        try {
+          await invoke('execute_process', {
+            processPath:
+              'C:\\Users\\gabri\\Downloads\\DS4Windows\\DS4Windows.exe',
+          })
+          console.log('DS4Windows iniciado.')
+        } catch (error) {
+          console.error('Erro ao iniciar DS4Windows:', error)
+        }
+      }
       console.log('Processo iniciado com sucesso:', result)
     } catch (error) {
       console.error('Erro ao tentar executar o processo:', error)
@@ -216,16 +271,33 @@ const GameDetails: React.FC<GameDetailsProps> = ({
   }
 
   return (
-    <div className="rounded-xl flex items-center">
-      <img
-        src={
-          selectedGame.coverUrl ||
-          'https://i.pinimg.com/736x/34/8d/53/348d53c456c2826821d17f421996031b.jpg'
-        }
-        alt={selectedGame.customName || selectedGame.name}
-        className="w-[263px] h-[350px] object-cover rounded-xl"
-      />
-      <div className="p-10">
+    <div className="rounded-xl flex items-center gap-10">
+      <div className="relative flex-shrink-0 w-[263px] h-[350px] overflow-clip rounded-xl group">
+        <img
+          src={
+            selectedGame.coverUrl ||
+            'https://i.pinimg.com/736x/34/8d/53/348d53c456c2826821d17f421996031b.jpg'
+          }
+          alt={selectedGame.customName || selectedGame.name}
+          className="w-full h-full object-cover z-20"
+        />
+        <div className="absolute top-0 right-0 p-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out z-10">
+          <button
+            className="px-2 py-2 bg-background rounded-full border border-textGray hover:bg-secondary"
+            onClick={() => handleOpenModal(selectedGame)}
+          >
+            <PencilIcon className="size-4 text-white" />
+          </button>
+          <button
+            className="px-2 py-2 bg-background rounded-full border border-textGray hover:bg-secondary"
+            onClick={() => setGameToDelete(selectedGame)}
+          >
+            <TrashIcon className="size-4 text-white" />
+          </button>
+        </div>
+        <div className="absolute top-0 right-0 bg-gradient-to-b from-black to-transparent w-full h-1/3 opacity-0 group-hover:opacity-70 transition-all duration-300 ease-in-out" />
+      </div>
+      <div className="w-full">
         <span className="text-4xl uppercase font-black">
           {selectedGame.customName || selectedGame.name}
         </span>
@@ -266,18 +338,16 @@ const GameDetails: React.FC<GameDetailsProps> = ({
               Uninstalled
             </div>
           )}
-
           <button
-            className="px-2 py-2 bg-foreground rounded-md border-2 border-foreground"
-            onClick={() => handleOpenModal(selectedGame)}
+            onClick={toggleDS4Windows}
+            className="relative bg-secondary border-2 border-secondary rounded-md p-[5px]"
           >
-            <PencilIcon className="size-4 text-textGray" />
-          </button>
-          <button
-            className="px-2 py-2 bg-foreground rounded-md border-2 border-foreground"
-            onClick={() => setGameToDelete(selectedGame)}
-          >
-            <TrashIcon className="size-4 text-textGray" />
+            <SlGameController
+              className={`text-2xl ${isDS4Enabled ? 'text-white' : 'text-textGray'}`}
+            />
+            {isDS4Enabled ? (
+              <FaCheck className="absolute -right-2 -top-2 text-secondary bg-white rounded-full p-[3px]" />
+            ) : null}
           </button>
         </div>
       </div>
