@@ -2,10 +2,20 @@ import React, { useState } from 'react'
 import { Store } from '@tauri-apps/plugin-store'
 
 interface ProcessInfo {
+  id: number
   name: string
   path: string
+  time: number
+  releaseDate: number
+  description: string
+  screenshots: string[]
+  genre_names: string[]
+  running: boolean
   customName?: string
   coverUrl?: string
+  addedDate: string
+  lastPlayedDate?: string
+  fileExists: boolean
 }
 
 interface GameEditModalProps {

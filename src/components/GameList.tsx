@@ -2,10 +2,14 @@ import React from 'react'
 import { invoke } from '@tauri-apps/api/core'
 
 interface ProcessInfo {
-  id: number // id field is required
+  id: number
   name: string
   path: string
   time: number
+  releaseDate: number
+  description: string
+  screenshots: string[]
+  genre_names: string[]
   running: boolean
   customName?: string
   coverUrl?: string
@@ -74,7 +78,7 @@ const GameList: React.FC<GameListProps> = ({
                 .map((process) => (
                   <div
                     key={process.name}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md hover:bg-[#343437] transition cursor-pointer ${
+                    className={`flex items-center gap-2 px-4 py-3 rounded-md hover:bg-[#343437] transition cursor-pointer ${
                       selectedGame?.name === process.name ? 'bg-secondary' : ''
                     }`}
                     onClick={() => handleGameClick(process)}
@@ -85,7 +89,7 @@ const GameList: React.FC<GameListProps> = ({
                         'https://i.pinimg.com/736x/34/8d/53/348d53c456c2826821d17f421996031b.jpg'
                       }
                       alt={process.customName || process.name}
-                      className="w-8 h-8 object-cover rounded"
+                      className="w-7 h-7 object-cover rounded aspect-square"
                     />
                     <span
                       className="text-sm truncate"

@@ -13,6 +13,10 @@ interface ProcessInfo {
   name: string
   path: string
   time: number
+  releaseDate: number
+  description: string
+  screenshots: string[]
+  genre_names: string[]
   running: boolean
   customName?: string
   coverUrl?: string
@@ -59,6 +63,10 @@ function App() {
       fileExists: false,
       path: '',
       time: 0,
+      releaseDate: 0,
+      description: '',
+      screenshots: [],
+      genre_names: [],
       running: false,
       addedDate: '',
       customName: '',
@@ -83,13 +91,7 @@ function App() {
           setSelectedGame={setSelectedGame}
         />
 
-        <div
-          className="flex flex-col sticky top-14 max-w-[900px] mx-auto z-10"
-          style={{
-            maxHeight: 'calc(100vh - 2rem)',
-            overflowY: 'auto',
-          }}
-        >
+        <div className="flex flex-col max-w-[900px] mx-auto z-10">
           {selectedGame ? (
             <GameDetails
               selectedGame={selectedGame}

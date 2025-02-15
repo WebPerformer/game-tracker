@@ -18,11 +18,19 @@ const Header: FC<HeaderProps> = ({
 }) => {
   return (
     <div>
-      <h1 className="text-xl font-medium mt-2 mb-6">
-        My Library{' '}
-        <span className="text-xs text-textGray">Beta Version 2.4</span>
-      </h1>
-      <div className="flex justify-between my-4">
+      <div className="flex items-center justify-between mt-2 mb-6">
+        <h1 className="text-xl font-medium">
+          My Library{' '}
+          <span className="text-xs text-textGray">Beta Version 3.0</span>
+        </h1>
+        <button
+          onClick={() => setShowIgdbModal(true)}
+          className="text-secondary bg-white font-semibold px-3 py-1 border-2 border-secondary rounded-md"
+        >
+          Add Game
+        </button>
+      </div>
+      <div className="my-4">
         <div className="flex items-center gap-2">
           <div className="relative">
             {/* Search Input */}
@@ -45,12 +53,6 @@ const Header: FC<HeaderProps> = ({
             <AdjustmentsHorizontalIcon className="size-6 text-textGray" />
           </button>
         </div>
-        <button
-          onClick={() => setShowIgdbModal(true)}
-          className="text-secondary bg-white font-semibold px-3 py-1 border-2 border-secondary rounded-md"
-        >
-          Add Game
-        </button>
       </div>
     </div>
   )

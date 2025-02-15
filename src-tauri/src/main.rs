@@ -18,10 +18,27 @@ struct Game {
     id: i32,
     name: String,
     cover: Option<Cover>,
+    first_release_date: Option<i32>,
+    summary: Option<String>,
+    screenshots: Option<Vec<Screenshot>>,
+    genres: Option<Vec<i32>>,
+    genre_names: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Genre {
+    id: i32,
+    name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Cover {
+    id: i32,
+    image_id: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Screenshot {
     id: i32,
     image_id: String,
 }
@@ -34,6 +51,7 @@ struct ProcessInfo {
 
 #[command]
 async fn search_games(query: String) -> Result<Vec<Game>, String> {
+    use std::collections::HashMap;
     dotenv().ok();
 
     let client_id = env::var("IGDB_CLIENT_ID").expect("Client ID not found");
@@ -43,7 +61,9 @@ async fn search_games(query: String) -> Result<Vec<Game>, String> {
     let client = reqwest::Client::new();
     let token_url = "https://id.twitch.tv/oauth2/token";
     let game_search_url = "https://api.igdb.com/v4/games";
+    let genre_search_url = "https://api.igdb.com/v4/genres";
 
+    // Obtém o token de acesso
     let token_res = client.post(token_url)
         .form(&[ 
             ("client_id", &client_id),
@@ -64,13 +84,14 @@ async fn search_games(query: String) -> Result<Vec<Game>, String> {
     headers.insert(AUTHORIZATION, HeaderValue::from_str(&format!("Bearer {}", access_token)).unwrap());
     headers.insert("Content-Type", HeaderValue::from_static("application/json"));
 
+    // Requisição para buscar os jogos
     let body = format!(
-        "search \"{}\"; fields id, name, cover.image_id; limit 10;",
+        "search \"{}\"; fields id, name, cover.image_id, first_release_date, summary, screenshots.image_id, genres; limit 10;",
         query
     );
 
     let response = client.post(game_search_url)
-        .headers(headers)
+        .headers(headers.clone())
         .body(body)
         .send()
         .await
@@ -79,11 +100,55 @@ async fn search_games(query: String) -> Result<Vec<Game>, String> {
     let response_body = response.text().await.map_err(|e| format!("Erro ao ler resposta: {}", e))?;
     println!("Response body: {}", response_body);
 
-    let games: Vec<Game> = serde_json::from_str(&response_body).map_err(|e| format!("Erro ao processar resposta: {}", e))?;
+    let mut games: Vec<Game> = serde_json::from_str(&response_body)
+        .map_err(|e| format!("Erro ao processar resposta: {}", e))?;
+
+    // Coletar todos os IDs de gênero para evitar requisições desnecessárias
+    let mut genre_ids = std::collections::HashSet::new();
+    for game in &games {
+        if let Some(genres) = &game.genres {
+            genre_ids.extend(genres.iter());
+        }
+    }
+
+    // Se houver gêneros, buscar seus nomes
+    let genre_names_map = if !genre_ids.is_empty() {
+        let genre_body = format!(
+            "fields id, name; where id = ({}) ;",
+            genre_ids.iter().map(|id: &i32| id.to_string()).collect::<Vec<String>>().join(",")
+        );
+
+        let genre_response = client.post(genre_search_url)
+            .headers(headers)
+            .body(genre_body)
+            .send()
+            .await
+            .map_err(|e| format!("Erro ao buscar gêneros: {}", e))?;
+
+        let genre_response_body = genre_response.text().await.map_err(|e| format!("Erro ao ler resposta dos gêneros: {}", e))?;
+        println!("Genres response body: {}", genre_response_body);
+
+        let genre_list: Vec<Genre> = serde_json::from_str(&genre_response_body)
+            .map_err(|e| format!("Erro ao processar resposta dos gêneros: {}", e))?;
+
+        genre_list.into_iter().map(|g| (g.id, g.name)).collect::<HashMap<_, _>>()
+    } else {
+        HashMap::new()
+    };
+
+    // Substituir IDs dos gêneros pelos nomes nos jogos
+    for game in &mut games {
+        if let Some(genres) = &game.genres {
+            game.genre_names = Some(
+                genres.iter()
+                    .filter_map(|id| genre_names_map.get(id).cloned())
+                    .collect()
+            );
+        }
+    }
 
     Ok(games)
 }
-
 
 #[tauri::command]
 fn list_app_processes() -> Vec<ProcessInfo> {

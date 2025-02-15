@@ -13,12 +13,31 @@ interface ProcessInfo {
   name: string
   path: string
   time: number
+  releaseDate: number
+  description: string
+  screenshots: string[]
+  genre_names: string[]
   running: boolean
   customName?: string
   coverUrl?: string
   addedDate: string
   lastPlayedDate?: string
   fileExists: boolean
+}
+
+interface Game {
+  id: number
+  cover: {
+    image_id: string
+  }
+  name: string
+  first_release_date: number
+  summary: string
+  screenshots: {
+    image_id: string
+  }[]
+  genres: number[]
+  genre_names: string[]
 }
 
 interface IgdbModalProps {
@@ -28,14 +47,6 @@ interface IgdbModalProps {
   setTrackedProcesses: React.Dispatch<React.SetStateAction<ProcessInfo[]>>
   setSelectedGame: React.Dispatch<React.SetStateAction<ProcessInfo | null>>
   trackedProcesses: ProcessInfo[] // Add this prop to access the state
-}
-
-interface Game {
-  id: number
-  cover: {
-    image_id: string
-  }
-  name: string
 }
 
 const IgdbModal: React.FC<IgdbModalProps> = ({
@@ -55,6 +66,7 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
     setLoading(true)
     try {
       const response = await invoke('search_games', { query: searchQuery })
+      console.log(response)
       const games = Array.isArray(response) ? response : []
       setGames(games)
     } catch (error) {
@@ -86,6 +98,15 @@ const IgdbModal: React.FC<IgdbModalProps> = ({
             customName: selectedGame.name || 'Unknown Game',
             path: processPath,
             time: 0,
+            releaseDate: selectedGame.first_release_date,
+            description: selectedGame.summary,
+            screenshots: selectedGame.screenshots
+              .slice(0, 3)
+              .map(
+                (s) =>
+                  `https://images.igdb.com/igdb/image/upload/t_original/${s.image_id}.jpg`,
+              ),
+            genre_names: selectedGame.genre_names || [],
             running: false,
             addedDate: new Date().toISOString(),
             fileExists: true,
